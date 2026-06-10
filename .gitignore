@@ -1,0 +1,19 @@
+# MATLAB
+*.asv
+*.m~
+*.mex*
+*.slxc
+slprj/
+*.prj
+
+# Private data and generated files
+data/raw/
+data/private/
+results/private/
+checkpoints/
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
