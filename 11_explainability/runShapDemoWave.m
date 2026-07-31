@@ -139,6 +139,16 @@ forwardFcn = @(vfBatch, prBatch) extractdata(predict(net, wavesToCTB(vfBatch, pr
 
 bgIdx = trainIdx(randperm(numel(trainIdx), min(15, numel(trainIdx))));
 
+% Shapley値の完全性(寄与度の合計 = 予測値 - 平均予測値)を1サンプルで確認しておく
+sanityQueryIdx = testIdx(1);
+sanityClassIdx = find(classes == string(label(sanityQueryIdx)));
+sanityExplainerChannel = computeShapleyChannelLevel(allVF, allPr, forwardFcn, sanityClassIdx, bgIdx, sanityQueryIdx);
+fprintf("\n[完全性チェック: チャンネル単位] Intercept + sum(Shapley) = %.5f (BlackboxFitted = %.5f のはず)\n", ...
+    sanityExplainerChannel.Intercept + sum(sanityExplainerChannel.Shapley.Value), sanityExplainerChannel.BlackboxFitted);
+sanityExplainerStats = computeShapleyPhysicalStats(allVF, allPr, forwardFcn, sanityClassIdx, bgIdx, sanityQueryIdx);
+fprintf("[完全性チェック: 統計量ベース] Intercept + sum(Shapley) = %.5f (BlackboxFitted = %.5f のはず)\n", ...
+    sanityExplainerStats.Intercept + sum(sanityExplainerStats.Shapley.Value), sanityExplainerStats.BlackboxFitted);
+
 fprintf("\n=== ① チャンネル単位SHAP (VF波形 / Pr波形) をクラスごとに計算中 ===\n");
 channelShapleyFcn = @(targetClassIdx, queryIdx) computeShapleyChannelLevel( ...
     allVF, allPr, forwardFcn, targetClassIdx, bgIdx, queryIdx);
