@@ -20,55 +20,19 @@ rawDataCreator = RawDataCreator();
 conditionsLength = length(rawData.conditions);
 processedData_capa = cell(1, conditionsLength);
 
-gasCalibrationRawdata_capa = cell(1, 1);
-liquidCalibrationRawdata_capa = cell(1, 1);
-
 for i = 1:conditionsLength
+    % 基準記録の探し方は resolveCapacitanceCalibration.m を参照 (代わりの記録 L0G30, L1G0 も使う)
     if i==1 || rawData.correctConditions(i-1) ~= rawData.correctConditions(i)
-        % 気相100%
-        gasCalibrationSource = append(DataPath.path,rawData.date,"/",CorrectConditions.LiquidPureFlowPrefix, rawData.correctConditions(i),"/ALLDATA.csv");
-
-        % 💡 修正箇所: ファイル存在チェック
-         if exist(gasCalibrationSource, 'file') ~= 2
-                warning('気相100%%の基準データ (%s) が見つかりません。この条件の静電容量補正をスキップします。', gasCalibrationSource);
-                
-                % 補正をスキップするための値を設定: (data - 0) * 1 となる
-                gasAverageValue = 0; 
-                liquidAverageValue = 1; 
-                calibrationDividingNum = 1; 
-                
-                % このスキップ処理が発動した場合、液相100%の読み込みもスキップ
-         else
-          % ファイルが見つかった場合の通常処理
-        tmp= readmatrix(gasCalibrationSource);
-        gasCalibrationRawdata_capa{1} = tmp(1: end,2); % [MEMO] 平均のみを取りたいので持ってくるのは静電容量の方だけでよい.
-        gasAverageValue =  mean(rmoutliers(gasCalibrationRawdata_capa{1}, 'ThresholdFactor',10));
-         end
-
-        % 液相100%
-        % [MEMO] こちらは液100%の場合の平均を持ってくる.
-        liquidCalibrationSource = append(DataPath.path,rawData.date, "/",rawData.correctConditions(i) ,CorrectConditions.gasPreFlowSuffix,"/ALLDATA.csv");
-        if exist(liquidCalibrationSource, 'file') ~= 2
-                % 液相100%の基準データが見つからない場合
-                warning('液相100%%の基準データ (%s) が見つかりません。この条件の静電容量補正をスキップします。', liquidCalibrationSource);
-                
-                % 補正をスキップするための値を設定: (data - 0) * 1 となる
-                gasAverageValue = 0;
-                liquidAverageValue = 1;
-                calibrationDividingNum = 1;
-                
-        else
-        tmp= readmatrix(liquidCalibrationSource);
-        liquidCalibrationRawdata_capa{1} = tmp(1: end,2);
-        %liquidAverageValue = mean(liquidCalibrationRawdata_capa{1});
-        liquidAverageValue = mean(rmoutliers(liquidCalibrationRawdata_capa{1}, 'ThresholdFactor',10));
-
-        gasLiquidAverageDiff = liquidAverageValue - gasAverageValue;
-        calibrationDividingNum = 1/gasLiquidAverageDiff;%気相100と液相100の間の距離を1に揃える. (前は10^(-13)に揃えていたが後で標準化するため1以外に揃える意味がない)
-        end
+        [gasAverageValue, liquidAverageValue, isCalibrated] = resolveCapacitanceCalibration(string(rawData.date), string(rawData.correctConditions(i)));
     end
 
-    processedData_capa{i} = (rawData.capacitanceCell{i} - gasAverageValue)*calibrationDividingNum;
+    % ボイド率 = (液相100% - C) / (液相100% - 気相100%)  → 気相100%で1, 液相100%で0
+    % 基準値が無い場合は補正せずそのまま通す
+    if isCalibrated
+        processedData_capa{i} = (liquidAverageValue - rawData.capacitanceCell{i}) / (liquidAverageValue - gasAverageValue);
+    else
+        processedData_capa{i} = rawData.capacitanceCell{i};
+    end
 end
 processedData = rawDataCreator.createFromArray(rawData.date,rawData.measuredFreq,rawData.conditions,rawData.labels,rawData.isNeedCorrect,rawData.correctConditions,rawData.timeCell,rawData.timeCell_second,processedData_capa,rawData.labelCell,rawData.liquidFlowRate,rawData.gasFlowRate);
 end

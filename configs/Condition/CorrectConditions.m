@@ -4,8 +4,10 @@ classdef CorrectConditions
        %　今後大流量化するとかの話も出てますので.
     
     properties (Constant) 
-        LiquidPureFlowPrefix = "G30_before_";
-        gasPreFlowSuffix = "G0";
+        LiquidPureFlowPrefix = "G30_before_"; % 名前に反して, 気相100%の基準記録の接頭辞
+        gasPreFlowSuffix = "G0";              % 名前に反して, 液相100%の基準記録の接尾辞
+        gasOnlyReference = "L0G30";           % 気相100%の代わり (G30_before_<液相条件> が無いとき)
+        liquidFallbackReference = "L1G0";     % 液相100%の代わり (<液相条件>G0 が無いとき. 例: L0.05)
 
         c22_liquidChange = ["L6"  "L6" "L6" "L6" "L6" "L6" "L6" "L6" "L6" "L6" "L6" "L3"  "L3" "L3" "L3" "L3" "L3" "L3" "L3" "L3" "L3" "L3"];
         c12_liquidChange = ["L1.5" "L1.5" "L1.5" "L3" "L3" "L3" "L4.5" "L4.5" "L4.5" "L6" "L6" "L6"];
