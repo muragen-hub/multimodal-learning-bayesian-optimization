@@ -74,7 +74,7 @@ for i = 1:numel(conds)
     rows(end+1, 1) = conds(i); regOf(end+1, 1) = A.TrueRegime(find(m, 1)); %#ok<SAGROW>
     mu(end+1, 1) = mean(a, "omitnan"); sd(end+1, 1) = std(a, 0, "omitnan"); %#ok<SAGROW>
 end
-perCond = table(rows, regOf, mu, sd, "VariableNames", ["Condition", "TrueRegime", "MeanAccuracy", "StdAccuracy"]);
+perCond = table(rows, regOf, mu, sd, 'VariableNames', ["Condition", "TrueRegime", "MeanAccuracy", "StdAccuracy"]);
 perCond = sortrows(perCond, ["TrueRegime", "Condition"]);
 writetable(perCond, fullfile(outDir, "perCondition_meanstd.csv"));
 emit(fid, "\n== 条件ごとの正解率 [%%] (平均 ± 標準偏差) ==\n");
@@ -88,8 +88,8 @@ for i = 1:numel(conds)
     m = A.Condition == conds(i);
     for c = 1:numel(classes), dist(i, c) = 100 * mean(A.Predicted(m) == classes(c)); end
 end
-distT = array2table(dist, "VariableNames", "Pred_" + classes);
-distT = [table(conds, "VariableNames", "Condition"), distT];
+distT = array2table(dist, 'VariableNames', "Pred_" + classes);
+distT = [table(conds, 'VariableNames', "Condition"), distT];
 writetable(distT, fullfile(outDir, "predictedShareByCondition.csv"));
 emit(fid, "\n== 正解率が90%%未満の条件の予測先 [%%] ==\n");
 for i = 1:numel(conds)
@@ -105,7 +105,7 @@ S = A(A.TrueRegime == "Stratified", :);
 bridgeClasses = ["bridge", "partial", "none"];
 emit(fid, "\n== 層状流の窓: 液の橋の有無別 ==\n");
 emit(fid, "  %-8s %8s %20s %12s %12s\n", "区分", "窓/種", "正解率[%]", "平均P(Slug)", "平均P(Strat)");
-bTab = table();
+bRows = {};
 for b = bridgeClasses
     m = S.BridgeClass == b;
     if ~any(m), continue; end
@@ -113,9 +113,10 @@ for b = bridgeClasses
     nPer = sum(m) / numel(seeds);
     pSlug = mean(S.P_Slug(m)); pStrat = mean(S.P_Stratified(m));
     emit(fid, "  %-8s %8.0f %20s %12.3f %12.3f\n", b, nPer, fmt(a), pSlug, pStrat);
-    bTab = [bTab; table(b, nPer, mean(a, "omitnan"), std(a, 0, "omitnan"), pSlug, pStrat, ...
-        "VariableNames", ["BridgeClass", "WindowsPerSeed", "MeanAccuracy", "StdAccuracy", "MeanP_Slug", "MeanP_Stratified"])]; %#ok<AGROW>
+    bRows{end+1} = table(b, nPer, mean(a, "omitnan"), std(a, 0, "omitnan"), pSlug, pStrat, ...
+        'VariableNames', ["BridgeClass", "WindowsPerSeed", "MeanAccuracy", "StdAccuracy", "MeanP_Slug", "MeanP_Stratified"]); %#ok<AGROW>
 end
+bTab = vertcat(bRows{:});
 writetable(bTab, fullfile(outDir, "stratifiedByBridge_meanstd.csv"));
 emit(fid, "  (窓の中で静電容量が311 fF以上の割合) と P(Slug) の相関 (層状流の窓): r = %.3f\n", localCorr(S.BridgeFraction, S.P_Slug));
 emit(fid, "\n  層状流の窓の予測先 [%%] (区分ごと):\n");
@@ -140,7 +141,7 @@ for r = 1:numel(regimes)
     m = A.TrueRegime == regimes(r);
     for c = 1:numel(classes), cm(r, c) = 100 * mean(A.Predicted(m) == classes(c)); end
 end
-cmT = array2table(cm, "VariableNames", "Pred_" + classes, "RowNames", cellstr(regimes));
+cmT = array2table(cm, 'VariableNames', "Pred_" + classes, "RowNames", cellstr(regimes));
 writetable(cmT, fullfile(outDir, "confusion_pooled.csv"), "WriteRowNames", true);
 emit(fid, "\n== 混同行列 [%%] (行 = 正解, 列 = 予測) ==\n");
 emit(fid, "  %-12s", ""); for c = 1:numel(classes), emit(fid, " %10s", classes(c)); end; emit(fid, "\n");
