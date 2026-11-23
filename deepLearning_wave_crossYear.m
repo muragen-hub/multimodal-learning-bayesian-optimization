@@ -99,6 +99,15 @@ for e = 1:size(exps, 1)
         emit(fid, "    %-11s: %5.1f%%\n", classes(c), rec(c));
     end
     emit(fid, "  流動様式ごとの平均 (クラス間の重みをそろえた正解率): %.1f%%\n", mean(rec, "omitnan"));
+    % 条件が1対1に対応していない状況の判別力: 学習に同じ名目流量が無かった条件だけの正解率
+    for sv = [true false]
+        m = Te.SeenCondition == sv;
+        if any(m)
+            if sv, lbl = "同じ名目流量が学習にもあった条件 (L1G3, L3G3 など)"; else, lbl = "同じ名目流量が学習に無かった条件"; end
+            emit(fid, "  %s: %.1f%% (%d条件, %d窓)\n", lbl, 100 * mean(Te.Correct(m)), ...
+                numel(unique(Te.Condition(m) + "@" + Te.TestSet(m))), sum(m));
+        end
+    end
     for d = unique(Te.TestSet, "stable")'
         m = Te.TestSet == d;
         emit(fid, "  テストの日 %s: %.1f%% (%d窓)\n", d, 100 * mean(Te.Correct(m)), sum(m));
@@ -214,6 +223,8 @@ function T = runExperiment(name, trainS, testS, cfg, outDir)
             'VariableNames', {'Exp', 'TestSet', 'Condition', 'TrueRegime', 'WindowStartSec', 'Predicted'});
         for c = 1:numel(classes), Ti.("P_" + classes(c)) = P(:, c); end
         Ti.Correct = Ti.Predicted == Ti.TrueRegime;
+        % 同じ名目流量の条件が学習の年にもあったか (あれば「運転点を覚えている」だけでも当たりうる)
+        Ti.SeenCondition = repmat(ismember(testS(i).cond, [trainS.cond]), n, 1);
         Ts{i} = Ti;
         fprintf("  %s %-9s (%s): 正解率 %.1f%%\n", testS(i).day, testS(i).cond, testS(i).regime, 100 * mean(Ti.Correct));
     end
