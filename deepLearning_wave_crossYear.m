@@ -224,7 +224,7 @@ function T = runExperiment(name, trainS, testS, cfg, outDir)
         for c = 1:numel(classes), Ti.("P_" + classes(c)) = P(:, c); end
         Ti.Correct = Ti.Predicted == Ti.TrueRegime;
         % 同じ名目流量の条件が学習の年にもあったか (あれば「運転点を覚えている」だけでも当たりうる)
-        Ti.SeenCondition = repmat(ismember(testS(i).cond, [trainS.cond]), n, 1);
+        Ti.SeenCondition = repmat(ismember(testS(i).cond, [trainS(~isVal).cond]), n, 1);  % 検証用に外した条件は, 学習には使っていないので含めない
         Ts{i} = Ti;
         fprintf("  %s %-9s (%s): 正解率 %.1f%%\n", testS(i).day, testS(i).cond, testS(i).regime, 100 * mean(Ti.Correct));
     end
