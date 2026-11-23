@@ -18,13 +18,15 @@
 %                    = 新しい装置の信号を少しだけ集めて「装置ごとの較正」をする場合に相当
 %   dpHoldSamples = 0 | 5        5 にすると 2026年の差圧を 5点保持 (約20 Hz) にして 2025年に合わせる
 %   channels = [1 2] | 1 | 2     使う信号 (1 = ボイド率, 2 = 差圧). 1 だけなら差圧の違いの影響が無い
+%   trainStride = 1 | 2           学習窓のずらし幅 (既定 1 = 卒論と同じ. 2 だと時間が半分)
+%   testStride = 10               テスト窓のずらし幅 (既定 10)
 %   quickTest = true             動作確認用 (2エポック, 窓を間引く)
 %   例: runSeed = 1; standardizeMode = "ownYear"; deepLearning_wave_crossYear
 %
 % 出力: results/step2_crossYear/<日時>_seed<種>_<設定>/  summary.txt, windows.csv, perCondition.csv, confusion_*.png
 
 clc;
-clearvars -except runSeed quickTest standardizeMode dpHoldSamples channels valMode;
+clearvars -except runSeed quickTest standardizeMode dpHoldSamples channels valMode trainStride testStride;
 close all hidden;
 addpath(genpath(pwd));
 
@@ -33,6 +35,8 @@ if ~exist("quickTest", "var"), quickTest = false; end
 if ~exist("standardizeMode", "var"), standardizeMode = "trainStats"; end
 if ~exist("dpHoldSamples", "var"), dpHoldSamples = 0; end
 if ~exist("channels", "var"), channels = [1 2]; end
+if ~exist("trainStride", "var"), trainStride = 1; end   % 卒論と同じ 1 点ずつずらす (以前の実行は 2)
+if ~exist("testStride", "var"), testStride = 10; end    % テスト窓は 0.1 秒ずつ (評価の間引き. 卒論は全窓)
 % valMode = "conditionHoldout": 学習側の各流動様式から1条件を丸ごと検証に外し, 検証損失が最小の時点のネットワークを使う (既定)
 %          "none"             : 検証を使わず, 全条件で学習し, 固定エポック数 (cfg.maxEpoch) 後の最後のネットワークを使う (卒論の動作に近い)
 if ~exist("valMode", "var"), valMode = "conditionHoldout"; end
@@ -45,8 +49,8 @@ cfg.seed = runSeed;
 cfg.regimes = ["Stratified", "Plug", "Slug"];
 cfg.freq = 100;
 cfg.dataWidth = 400;       % 4秒
-cfg.trainStride = 2;       % 学習の窓のずらし幅 [点] (Step 1 は 1. 隣の窓はほぼ同じ信号なので 2 にして時間を半分にした)
-cfg.testStride = 10;       % テストの窓のずらし幅 [点] (0.1秒)
+cfg.trainStride = trainStride;   % 学習の窓のずらし幅 [点]. 卒論は 1
+cfg.testStride = testStride;     % テストの窓のずらし幅 [点] (10 = 0.1秒)
 cfg.learnRate = 0.001;
 cfg.maxEpoch = 30;
 cfg.batchSize = 64;
