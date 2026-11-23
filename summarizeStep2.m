@@ -39,6 +39,7 @@ for i = 1:numel(names)
     thisCh = string(tk{1});
     if thisStd ~= stdFilter || thisVal ~= valFilter || thisCh ~= chFilter, continue; end
     T = readtable(wf, "TextType", "string");
+    T.TestSet = string(T.TestSet); T.Condition = string(T.Condition);   % 日付が数値として読まれるのを防ぐ
     s = T.Seed(1);
     k = find(seedsSeen == s);
     if isempty(k)
