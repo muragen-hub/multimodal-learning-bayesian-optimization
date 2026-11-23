@@ -19,6 +19,11 @@ function bestNet = trainBiLSTM(net, Xtr, Ytr, Xval, Yval, classes, learnRate, ma
             grad = dlupdate(@clipL2, grad);
             [net, avgG, avgSqG] = adamupdate(net, grad, avgG, avgSqG, iter, learnRate);
         end
+        if isempty(Xval)   % 検証を使わない: 固定エポック数で学習し, 最後のネットワークを使う
+            fprintf("    エポック %2d 終了\n", epoch);
+            bestNet = net;
+            continue;
+        end
         [valLoss, valAcc] = evaluateSet(net, Xval, Tval);
         fprintf("    エポック %2d: 検証の損失 %.4f, 検証の正解率 %.1f%%\n", epoch, valLoss, 100 * valAcc);
         if valLoss < bestLoss

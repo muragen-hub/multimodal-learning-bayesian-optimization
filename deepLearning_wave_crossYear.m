@@ -24,7 +24,7 @@
 % 出力: results/step2_crossYear/<日時>_seed<種>_<設定>/  summary.txt, windows.csv, perCondition.csv, confusion_*.png
 
 clc;
-clearvars -except runSeed quickTest standardizeMode dpHoldSamples channels;
+clearvars -except runSeed quickTest standardizeMode dpHoldSamples channels valMode;
 close all hidden;
 addpath(genpath(pwd));
 
@@ -33,6 +33,11 @@ if ~exist("quickTest", "var"), quickTest = false; end
 if ~exist("standardizeMode", "var"), standardizeMode = "trainStats"; end
 if ~exist("dpHoldSamples", "var"), dpHoldSamples = 0; end
 if ~exist("channels", "var"), channels = [1 2]; end
+% valMode = "conditionHoldout": 学習側の各流動様式から1条件を丸ごと検証に外し, 検証損失が最小の時点のネットワークを使う (既定)
+%          "none"             : 検証を使わず, 全条件で学習し, 固定エポック数 (cfg.maxEpoch) 後の最後のネットワークを使う (卒論の動作に近い)
+if ~exist("valMode", "var"), valMode = "conditionHoldout"; end
+valMode = string(valMode);
+assert(ismember(valMode, ["conditionHoldout", "none"]), "valMode は conditionHoldout か none");
 standardizeMode = string(standardizeMode);
 assert(ismember(standardizeMode, ["trainStats", "ownYear"]), "standardizeMode は trainStats か ownYear");
 
@@ -49,14 +54,16 @@ cfg.hidden = 320;
 cfg.patience = 5;
 cfg.standardizeMode = standardizeMode;
 cfg.channels = channels;
+cfg.valMode = valMode;
 if quickTest
     cfg.maxEpoch = 2; cfg.trainStride = 20; cfg.testStride = 50;
 end
 
 tag = sprintf("%s_dp%d_ch%s", standardizeMode, dpHoldSamples, strjoin(string(channels), ""));
+if valMode == "none", tag = tag + "_valNone"; end
 outDir = fullfile("results", "step2_crossYear", string(datetime("now", "Format", "yyyyMMdd_HHmm")) + "_seed" + runSeed + "_" + tag);
 mkdir(outDir);
-fprintf("設定: seed=%d, %s, 差圧の保持=%d点, 使う信号=%s, quickTest=%d\n", runSeed, standardizeMode, dpHoldSamples, mat2str(channels), quickTest);
+fprintf("設定: seed=%d, %s, 差圧の保持=%d点, 使う信号=%s, 検証=%s, quickTest=%d\n", runSeed, standardizeMode, dpHoldSamples, mat2str(channels), valMode, quickTest);
 
 %% 1. データの取り込み
 S25a = loadFiltered("20251114", Conditions.c12a, Labels.c12a_normal, CorrectConditions.c12a_liquidChange, cfg, 0);
@@ -84,8 +91,8 @@ writetable(T, fullfile(outDir, "windows.csv"));
 %% 4. 集計
 classes = sort(cfg.regimes);
 fid = fopen(fullfile(outDir, "summary.txt"), "w", "n", "UTF-8");
-emit(fid, "seed=%d, quickTest=%d, 標準化=%s, 差圧の保持=%d点, 使う信号=%s, 学習の窓のずらし幅=%d, 最大エポック=%d\n", ...
-    runSeed, quickTest, standardizeMode, dpHoldSamples, mat2str(channels), cfg.trainStride, cfg.maxEpoch);
+emit(fid, "seed=%d, quickTest=%d, 標準化=%s, 差圧の保持=%d点, 使う信号=%s, 学習の窓のずらし幅=%d, 最大エポック=%d, 検証=%s\n", ...
+    runSeed, quickTest, standardizeMode, dpHoldSamples, mat2str(channels), cfg.trainStride, cfg.maxEpoch, valMode);
 emit(fid, "クラス: %s\n", strjoin(classes, ", "));
 for e = 1:size(exps, 1)
     name = exps{e, 1};
@@ -174,15 +181,21 @@ function T = runExperiment(name, trainS, testS, cfg, outDir)
 
     % 検証 (学習を止める判断) 用に, 各流動様式から1条件ずつ丸ごと外す (同じ条件の窓を検証に混ぜない)
     valNames = strings(1, 0);
-    for r = classes
-        names = unique([trainS([trainS.regime] == r).cond]);
-        valNames(end+1) = names(randi(numel(names))); %#ok<AGROW>
+    if cfg.valMode == "conditionHoldout"
+        for r = classes
+            names = unique([trainS([trainS.regime] == r).cond]);
+            valNames(end+1) = names(randi(numel(names))); %#ok<AGROW>
+        end
     end
     isVal = ismember([trainS.cond], valNames);
     fprintf("学習の条件: %s\n検証の条件: %s\n", strjoin(unique([trainS(~isVal).cond]), ", "), strjoin(valNames, ", "));
 
     [Xtr, Ytr] = buildSet(trainS(~isVal), cfg, cfg.trainStride);
-    [Xva, Yva] = buildSet(trainS(isVal), cfg, cfg.trainStride);
+    if any(isVal)
+        [Xva, Yva] = buildSet(trainS(isVal), cfg, cfg.trainStride);
+    else
+        Xva = {}; Yva = strings(0, 1);   % valMode = "none": 検証を使わない
+    end
 
     % テストの窓
     nTest = numel(testS);
