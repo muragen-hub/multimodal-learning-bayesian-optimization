@@ -221,8 +221,16 @@ function T = runExperiment(name, trainS, testS, cfg, outDir)
               bilstmLayer(cfg.hidden, "OutputMode", "last", "Name", "biLSTM")
               fullyConnectedLayer(numel(classes), "Name", "fc")
               softmaxLayer("Name", "softmax")];
-    net = trainBiLSTM(dlnetwork(layers), toArray(Xtr), Ytr, toArray(Xva), Yva, classes, cfg.learnRate, cfg.maxEpoch, cfg.batchSize, cfg.patience);
+    % 監視用: テストの窓を等間隔に最大3000個選び, 各エポックの終わりの正解率を「表示だけ」に記録する (学習の判断には使わない)
+    Wall = vertcat(Wt{:});
+    Yall = strings(0, 1);
+    for i = 1:nTest, Yall = [Yall; repmat(testS(i).regime, numel(Wt{i}), 1)]; end %#ok<AGROW>
+    monIdx = unique(round(linspace(1, numel(Wall), min(numel(Wall), 3000))));
+    Xmon = toArray(std1(Wall(monIdx), muT, sgT)); Ymon = Yall(monIdx);
+    [net, history] = trainBiLSTM(dlnetwork(layers), toArray(Xtr), Ytr, toArray(Xva), Yva, classes, cfg.learnRate, cfg.maxEpoch, cfg.batchSize, cfg.patience, Xmon, Ymon);
     save(fullfile(outDir, name + "_net.mat"), "net", "classes", "mu", "sg", "muT", "sgT");
+    save(fullfile(outDir, name + "_history.mat"), "history");
+    plotTrainingProgress(history, name + " (" + cfg.standardizeMode + ", 検証=" + cfg.valMode + ")", fullfile(outDir, "progress_" + name + ".png"));
 
     % テスト
     Ts = cell(nTest, 1);
