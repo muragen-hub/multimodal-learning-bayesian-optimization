@@ -31,7 +31,7 @@ function bestNet = trainBiLSTM(net, Xtr, Ytr, Xval, Yval, classes, learnRate, ma
 end
 
 function [loss, grad] = modelLoss(net, dlX, T)
-    Y = forward(net, dlX);
+    Y = stripdims(forward(net, dlX));          % 書式つきの出力から書式を外す (DataFormat を指定するため)
     loss = crossentropy(Y, T, "DataFormat", "CB");
     grad = dlgradient(loss, net.Learnables);
 end
