@@ -27,12 +27,18 @@
 %   summary.txt, confusion.png, stratified_timeline_<条件>.png
 
 clc;
-clearvars -except runSeed quickTest;
+clearvars -except runSeed quickTest foldMode;
 close all hidden;
 addpath(genpath(pwd));
 
 if ~exist("runSeed", "var"), runSeed = 1; end
 if ~exist("quickTest", "var"), quickTest = false; end
+% foldMode = "ordered" : 各流動様式の k 番目の条件を分割 k のテストにする (Step 1 の本番はこれ. 種を変えても分割は同じ)
+%            "shuffled": 各流動様式の中で条件の順番を種ごとにシャッフルして分割を決める (Step 1b)
+%                        → 種を変えると分割が変わり, L1G3 と L1G20 が別の分割に入る種もできる
+if ~exist("foldMode", "var"), foldMode = "ordered"; end
+foldMode = string(foldMode);
+assert(ismember(foldMode, ["ordered", "shuffled"]), "foldMode は ordered か shuffled");
 
 %% 0. 設定
 date = "20261120";
@@ -62,7 +68,9 @@ if quickTest
 end
 
 rng(runSeed);
-outDir = fullfile("results", "step1_conditionCV", string(datetime("now", "Format", "yyyyMMdd_HHmm")) + "_seed" + runSeed);
+dirSuffix = "";
+if foldMode == "shuffled", dirSuffix = "_shuffled"; end
+outDir = fullfile("results", "step1_conditionCV", string(datetime("now", "Format", "yyyyMMdd_HHmm")) + "_seed" + runSeed + dirSuffix);
 mkdir(outDir);
 
 %% 1. データの取り込みと前処理 (20条件まとめて)
@@ -100,9 +108,16 @@ fprintf("流動様式: %s\n", strjoin(regimes, ", "));
 fold = zeros(1, nCond);
 for r = 1:numel(regimes)
     idx = find([series.regime] == regimes(r));
-    fold(idx) = 1:numel(idx);
+    if foldMode == "shuffled"
+        fold(idx) = randperm(numel(idx));
+    else
+        fold(idx) = 1:numel(idx);
+    end
 end
 nFold = max(fold);
+for k = 1:nFold
+    fprintf("分割 %d のテスト条件: %s\n", k, strjoin([series(fold == k).cond], ", "));
+end
 
 %% 3. 分割ごとに学習とテスト
 allRows = {};
@@ -193,7 +208,10 @@ writetable(predShare, fullfile(outDir, "stratifiedPredictedByBridge.csv"));
 disp(byBridge(:, ["BridgeClass", "GroupCount", "AccuracyPercent"]))
 
 fid = fopen(fullfile(outDir, "summary.txt"), "w");
-fprintf(fid, "seed=%d, quickTest=%d, maxEpoch=%d, trainStride=%d, testStride=%d\n", runSeed, quickTest, maxEpoch, trainStride, testStride);
+fprintf(fid, "seed=%d, quickTest=%d, maxEpoch=%d, trainStride=%d, testStride=%d, foldMode=%s\n", runSeed, quickTest, maxEpoch, trainStride, testStride, foldMode);
+for k = 1:nFold
+    fprintf(fid, "分割 %d のテスト条件: %s\n", k, strjoin([series(fold == k).cond], ", "));
+end
 fprintf(fid, "基準: 気相 %.1f fF, 液相 %.1f fF / 液の橋 >= %.0f fF, 届きかけ >= %.0f fF, %d点以上\n", gasRef*1e15, liqRef*1e15, bridgeThreshold*1e15, partialThreshold*1e15, minSamples);
 fprintf(fid, "全体の正解率: %.2f%% (%d窓)\n", 100 * mean(T.Correct), height(T));
 for r = regimes

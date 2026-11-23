@@ -62,3 +62,17 @@ E0 → E1 → E2 の全体の正解率とクラスごとの正解率、条件ご
 - E0 は「同じ装置・別の日」の基準。E1・E2 がそれより大きく下がるなら、装置の違い（喉部径 4→6 mm、流体 0.65cs→1cs、
   差圧の時間分解能、基準値の取り方、層状流の流量が L0.05 と L0.3 で違うこと）が効いている。
 - A と B の差 = 標準化（装置ごとの較正）で戻る分。B と D の差 = 差圧を使うことの影響。
+
+## C. Step 1b（分割の割り当てを種ごとに変える）
+Step 1 の本番（`foldMode="ordered"`）は、種を変えても分割が同じで、L1G3 と L1G20 が必ず同じ分割（分割1）でテストに回る
+（学習に低流量のプラグ流・スラグ流が1つも残らない）。`foldMode="shuffled"` は各流動様式の中で条件の順番を種ごとにシャッフルして分割を決める。
+```bash
+cd ~/step2-crossyear
+# 試し実行
+matlab -batch "assert(canUseGPU,'GPU unavailable'); quickTest=true; foldMode=\"shuffled\"; runSeed=11; deepLearning_wave_2026_conditionCV" 2>&1 | tee quicktest-1b.log
+# 本番 (種 11, 12, 13)
+nohup bash -c 'for s in 11 12 13; do matlab -batch "foldMode=\"shuffled\"; runSeed=$s; deepLearning_wave_2026_conditionCV" > step1b-seed$s.log 2>&1; done' > /dev/null 2>&1 &
+```
+- ログの最初に「分割 k のテスト条件: ...」が出る。L1G3 と L1G20 が別の分割に入っている種があるか確認して報告する。
+- 集計: `matlab -batch "foldModeFilter='shuffled'; summarizeStep1"`（結果が別フォルダなら `resultsRoot=...` も指定）。
+  `ordered`（Step 1 の本番）と `shuffled` は別々に集計される。

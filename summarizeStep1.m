@@ -4,14 +4,19 @@
 %   結果が別のフォルダにあるとき: matlab -batch "resultsRoot='/home/.../results/step1_conditionCV'; summarizeStep1"
 % 読むもの : results/step1_conditionCV/<日時>_seed<種>/ の windows.csv と summary.txt
 %            (summary.txt に quickTest=0 と書かれたものだけ. 同じ種が複数あれば新しい方)
-% 出力     : results/step1_conditionCV/_summary/ に summary_all.txt と各種CSV, confusion_pooled.png
+% 出力     : results/step1_conditionCV/_summary_<ordered|shuffled>/ に summary_all.txt と各種CSV, confusion_pooled.png
 
-clc; clearvars -except resultsRoot; close all hidden;
+clc; clearvars -except resultsRoot foldModeFilter; close all hidden;
+
+% 集計する分割の方式: "ordered" (Step 1 の本番) か "shuffled" (Step 1b). 省略すると ordered.
+% summary.txt に foldMode の記載が無い古い結果は ordered として扱う.
+if ~exist("foldModeFilter", "var"), foldModeFilter = "ordered"; end
+foldModeFilter = string(foldModeFilter);
 
 % 結果が別のフォルダにあるときは, 先に resultsRoot = "/path/to/results/step1_conditionCV"; を指定する
 if ~exist("resultsRoot", "var"), resultsRoot = fullfile("results", "step1_conditionCV"); end
 root = string(resultsRoot);
-outDir = fullfile(root, "_summary");
+outDir = fullfile(root, "_summary_" + foldModeFilter);
 if ~isfolder(outDir), mkdir(outDir); end
 
 %% 1. 結果の読み込み
@@ -25,6 +30,9 @@ for i = 1:numel(names)
     if ~isfile(sf) || ~isfile(wf), continue; end
     head = readlines(sf);
     if ~contains(head(1), "quickTest=0"), continue; end   % 試し実行は除く
+    thisMode = "ordered";
+    if contains(head(1), "foldMode=shuffled"), thisMode = "shuffled"; end
+    if thisMode ~= foldModeFilter, continue; end
     T = readtable(wf, "TextType", "string");
     s = T.Seed(1);
     k = find(seedsSeen == s);
