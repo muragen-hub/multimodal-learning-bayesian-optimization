@@ -84,40 +84,31 @@ classdef RawDataCreatorWave
                 % 1. データ読み込み
                 tmp = readmatrix(sources(i));
                 
-                time = tmp(51:end,1);
-                Capacitance = tmp(51:end,2);
-                pressure6 = tmp(51:end,6);
+                % 列の並びは実験日によって違う (RawDataColumns.m を参照)
+                col = RawDataColumns.forDate(string(date));
+                time = tmp(51:end, col.time);
+                Capacitance = tmp(51:end, col.capacitance);
+                upstreamPressure = tmp(51:end, col.upstreamPressure);
 
-                % RawDataCreatorWave/createInternal (行 90) の周辺
-
-                % tmpの列数を取得
                 numCols = size(tmp, 2);
-                
-                if numCols >= 8
-                    % --- 8列目がある場合 ---
-                    % 通常通り8列目の値を pressure8 として使用
-                    pressure8 = tmp(51:end, 8);
-                    
-                    disp('情報: 8列目のデータ (pressure8) を使用しました。');
-                
+                if numCols >= col.throatPressure
+                    throatPressure = tmp(51:end, col.throatPressure);
                 else
-                    % --- 8列目はないが、3列目は必ずある場合 ---
-                    % 3列目の値を pressure8 に代入 (代替処理)
-                    % ※ numCols >= 3 は前提として省略
-                    pressure8 = tmp(51:end, 3);
-                    
-                    disp('警告: 8列目のデータがないため、代わりに3列目のデータを pressure8 として使用しました。');
-                
+                    % 古いデータでスロート圧力の列が無い場合の代替処理 (以前と同じく3列目を使う)
+                    throatPressure = tmp(51:end, 3);
+                    warning('%s/%s: %d列目が無いため, 代わりに3列目を差圧の計算に使いました.', date, conditions(i), col.throatPressure);
                 end
 
-                DifferentialPressure = pressure6 - pressure8; 
-                LiquidFlowRate = tmp(51:end,4);
-                GasFlowRate = tmp(51:end,5);
+                DifferentialPressure = upstreamPressure - throatPressure;
+                LiquidFlowRate = tmp(51:end, col.liquidFlowRate);
+                GasFlowRate = tmp(51:end, col.gasFlowRate);
                 
-                % 2. 外れ値処理と共通NaNインデックスの特定 (旧版のロジックを強化)
-                [~, idx_rm_capa] = rmoutliers(Capacitance, 'ThresholdFactor', 10);
-                [~, idx_rm_dp] = rmoutliers(DifferentialPressure, 'ThresholdFactor', 3.5);
-                idx_rm_common = idx_rm_capa | idx_rm_dp; % <--- 共通の外れ値インデックス
+                % 2. 外れ値処理と共通NaNインデックスの特定
+                % 物理的にありえない値だけを除く (PlausibleRange.m を参照).
+                % 以前の rmoutliers は液の橋やスラグの差圧ピークまで消していたので使わない.
+                idx_rm_capa = PlausibleRange.capacitanceOutliers(Capacitance);
+                idx_rm_dp = PlausibleRange.diffPressureOutliers(DifferentialPressure);
+                idx_rm_common = idx_rm_capa | idx_rm_dp; % <--- 共通の外れ値インデックス (片方が異常なら両方除く)
                 idx_rm_common_all{i} = idx_rm_common; % 後で利用するため保存
                 
                 % 3. WaveTypeに応じたデータ選択とNaN置換
@@ -170,11 +161,17 @@ classdef RawDataCreatorWave
     methods (Static)
         % 流量条件から流動様式ラベルに変換するメソッド (省略しない)
         function p = correctFlowRegime(condition)
-            slug = ["L0.5G20" "L0.7G20" "L1G20" "L1.5G25" "L1.5G50" "L2G20" "L3G20" "L3G25" "L3G50" "L4.5G25" "L4.5G50" "L5G20" "L6G20" "L6G25" "L6G50" "L3G70" "L6G70"];
+            % 2026/11/20 の条件も追加 (L5G10, L5G15, L8G6, L9G3, L9G5, L0.3G1〜G3). 動画で確認済み:
+            %   L0.3G1〜G3 は層状流とスラグ流が入れ替わる, L6G1/L6G3 はプラグ流と気泡流が混ざる.
+            %   ここでは想定した流動様式をラベルにする (遷移の扱いは別に評価する).
+            slug = ["L0.5G20" "L0.7G20" "L1G20" "L1.5G25" "L1.5G50" "L2G20" "L3G20" "L3G25" "L3G50" "L4.5G25" "L4.5G50" "L5G20" "L6G20" "L6G25" "L6G50" "L3G70" "L6G70" ...
+                    "L5G10" "L5G15"];
             plug = ["L0.7G3" "L1G1" "L1G3" "L1.5G1" "L3G1" "L3G3" "L4.5G1" "L6G1" "L6G3"];
-            bubbly = ["L10G1" "L10G3" "L10G20" "L10G70" "L14G1" "L14G3" "L14G20" "L14G50" "L14G70"];
+            bubbly = ["L10G1" "L10G3" "L10G20" "L10G70" "L14G1" "L14G3" "L14G20" "L14G50" "L14G70" ...
+                      "L8G6" "L9G3" "L9G5"];
             annular = ["L0.5G70" "L0.7G70" "L1G70" "L1G90" "L3G90" "L5G90"];
-            stratified = ["L0.05G1" "L0.05G3" "L0.05G10" "L0.5G1" "L0.5G3" "L0.7G1"];
+            stratified = ["L0.05G1" "L0.05G3" "L0.05G10" "L0.5G1" "L0.5G3" "L0.7G1" ...
+                          "L0.3G1" "L0.3G1.5" "L0.3G2" "L0.3G2.5" "L0.3G3"];
             if ismember(condition, slug)
                 p = "Slug";
             elseif ismember(condition, plug)

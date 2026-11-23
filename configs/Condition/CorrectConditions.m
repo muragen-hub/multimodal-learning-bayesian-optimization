@@ -17,6 +17,9 @@ classdef CorrectConditions
         c28_liquidChange = ["L0.5" "L0.5" "L0.5" "L0.5" "L0.7" "L0.7" "L0.7" "L0.7" "L1" "L1" "L1" "L1" "L3" "L3" "L3" "L3" "L6" "L6" "L6" "L6" "L10" "L10" "L10" "L10" "L14" "L14" "L14" "L14"];
         plugSlug_28 = ["L3" "L3" "L3" "L6" "L6" "L6" ];
         c12a_liquidChange = ["L0.05" "L0.05" "L0.05" "L1" "L1" "L2" "L3" "L3" "L3" "L5" "L5" "L6"];
+        % 2026/11/20. 基準値は液相条件によらず同じ値を使う (CapacitanceReference.m を参照) ので, 液相条件は形式上のもの
+        c20_2026_liquidChange = ["L0.3" "L0.3" "L0.3" "L0.3" "L0.3" "L1" "L3" "L3" "L6" "L6" ...
+                                 "L1" "L3" "L5" "L5" "L6" "L8" "L9" "L9" "L10" "L10"];
     end
 end
 

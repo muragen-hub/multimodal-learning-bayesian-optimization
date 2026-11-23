@@ -18,8 +18,31 @@ function [gasAverageValue, liquidAverageValue, isCalibrated] = resolveCapacitanc
     gasCandidates = [append(CorrectConditions.LiquidPureFlowPrefix, correctCondition), CorrectConditions.gasOnlyReference];
     liquidCandidates = [append(correctCondition, CorrectConditions.gasPreFlowSuffix), CorrectConditions.liquidFallbackReference];
 
-    gasAverageValue = readReferenceAverage(date, gasCandidates, "気相100%");
-    liquidAverageValue = readReferenceAverage(date, liquidCandidates, "液相100%");
+    % 実験日ごとに基準を直接指定している場合はそれを優先する (CapacitanceReference.m を参照)
+    ref = CapacitanceReference.forDate(date);
+    if ~isempty(ref)
+        if ~isnan(ref.gasValue)
+            gasCandidates = strings(1, 0);
+        elseif ref.gasRecord ~= ""
+            gasCandidates = ref.gasRecord;
+        end
+        if ~isnan(ref.liquidValue)
+            liquidCandidates = strings(1, 0);
+        elseif ref.liquidRecord ~= ""
+            liquidCandidates = ref.liquidRecord;
+        end
+    end
+
+    if ~isempty(ref) && ~isnan(ref.gasValue)
+        gasAverageValue = ref.gasValue;
+    else
+        gasAverageValue = readReferenceAverage(date, gasCandidates, "気相100%");
+    end
+    if ~isempty(ref) && ~isnan(ref.liquidValue)
+        liquidAverageValue = ref.liquidValue;
+    else
+        liquidAverageValue = readReferenceAverage(date, liquidCandidates, "液相100%");
+    end
 
     isCalibrated = ~isnan(gasAverageValue) && ~isnan(liquidAverageValue) ...
         && abs(liquidAverageValue - gasAverageValue) > 1e-15;

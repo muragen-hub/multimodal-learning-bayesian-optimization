@@ -15,6 +15,11 @@ classdef Conditions
         plugSlug_28 = ["L3G1" "L3G3" "L3G20" "L6G1" "L6G3" "L6G20" ];
         flowRegimes = ["Stratified" "Bubbly" "Slug" "Plug" "Annular"];
         c12a = ["L0.05G1" "L0.05G3" "L0.05G10" "L1G3" "L1G90" "L2G20" "L3G3" "L3G20" "L3G90" "L5G20" "L5G90" "L6G1"];
+        % 2026/11/20 (作動流体 KF-96L-1cs, 各20秒). 流動様式ごとに5条件ずつ (層状流, プラグ流, スラグ流, 気泡流の順)
+        c20_2026 = ["L0.3G1" "L0.3G1.5" "L0.3G2" "L0.3G2.5" "L0.3G3" ...
+                    "L1G3" "L3G1" "L3G3" "L6G1" "L6G3" ...
+                    "L1G20" "L3G20" "L5G10" "L5G15" "L6G20" ...
+                    "L8G6" "L9G3" "L9G5" "L10G1" "L10G3"];
     end
 end
 

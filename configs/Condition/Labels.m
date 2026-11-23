@@ -18,6 +18,11 @@ classdef Labels
         c30_normal = ["L0.05G1" "L0.05G53" "L0.5G1" "L0.5G3" "L0.5G20" "L0.5G70" "L0.7G1" "L0.7G3" "L0.7G20" "L0.7G70" "L1G1" "L1G3" "L1G20" "L1G70" "L3G1" "L3G3" "L3G20" "L3G70" "L6G1" "L6G3" "L6G20" "L6G70" "L10G1" "L10G3" "L10G20" "L10G70" "L14G1" "L14G3" "L14G20" "L14G50"];
         plugSlug_28 = ["L3G1" "L3G3" "L3G20" "L6G1" "L6G3" "L6G20" ];
         c12a_normal = ["L0.05G1" "L0.05G3" "L0.05G10" "L1G3" "L1G90" "L2G20" "L3G3" "L3G20" "L3G90" "L5G20" "L5G90" "L6G1"];
+        % 2026/11/20. ラベルは条件名そのもの (Conditions.c20_2026 と同じ並び)
+        c20_2026_normal = ["L0.3G1" "L0.3G1.5" "L0.3G2" "L0.3G2.5" "L0.3G3" ...
+                           "L1G3" "L3G1" "L3G3" "L6G1" "L6G3" ...
+                           "L1G20" "L3G20" "L5G10" "L5G15" "L6G20" ...
+                           "L8G6" "L9G3" "L9G5" "L10G1" "L10G3"];
           
         % 新規追加: 流動様式用ラベル
         flowRegimes = categorical([1, 2, 3, 4, 5]);
